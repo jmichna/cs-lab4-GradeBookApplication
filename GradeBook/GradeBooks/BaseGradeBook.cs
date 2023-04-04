@@ -9,15 +9,18 @@ using Newtonsoft.Json.Linq;
 
 namespace GradeBook.GradeBooks
 {
-    public class BaseGradeBook
+    public abstract class BaseGradeBook
     {
         public string Name { get; set; }
+        public bool IsWeighted { get; set; }
         public List<Student> Students { get; set; }
         public GradeBookType Type { get; set; }
+        
 
-        public BaseGradeBook(string name)
+        public BaseGradeBook(string name, bool isWeighted)
         {
             Name = name;
+            IsWeighted = isWeighted;
             Students = new List<Student>();
         }
 
@@ -107,20 +110,35 @@ namespace GradeBook.GradeBooks
 
         public virtual double GetGPA(char letterGrade, StudentType studentType)
         {
+            double addGPA = 0;
+            if (studentType == StudentType.Honors || studentType == StudentType.DualEnrolled)
+            {
+                if (IsWeighted)
+                {
+                    addGPA++;
+                }
+            }
             switch (letterGrade)
             {
                 case 'A':
-                    return 4;
+                    return addGPA += 4;
+
                 case 'B':
-                    return 3;
+                    return addGPA += 3;
                 case 'C':
-                    return 2;
+                    return addGPA += 2;
                 case 'D':
-                    return 1;
+                    return addGPA += 1;
                 case 'F':
-                    return 0;
+                    return addGPA += 0;
+
             }
-            return 0;
+            if ((studentType == StudentType.Honors || studentType == StudentType.DualEnrolled) && IsWeighted)
+            {
+                addGPA++;
+            }
+
+            return addGPA;
         }
 
         public virtual void CalculateStatistics()
@@ -266,86 +284,6 @@ namespace GradeBook.GradeBooks
                              select type).FirstOrDefault();
             
             return JsonConvert.DeserializeObject(json, gradebook);
-        }
-
-    }
-
-    public class StandardGradeBook : BaseGradeBook
-    {
-        public StandardGradeBook(string name) : base(name)
-        {
-            Type = GradeBookType.Standard;
-        }
-    }
-
-    public class RankedGradeBook : BaseGradeBook
-    {
-        public RankedGradeBook(string name) : base(name)
-        {
-            Type = GradeBookType.Ranked;
-        }
-
-        public override char GetLetterGrade(double averageGrade)
-        {
-            if (Students.Count < 5)
-            {
-                throw new InvalidOperationException("Ranked grading requires at least 5 students.");
-            }
-
-            // Determine the size of each grade bucket (20% of the total number of students)
-            var bucketSize = Students.Count / 5;
-
-            // Sort the student grades in descending order
-            var sortedGrades = Students.OrderByDescending(s => s.AverageGrade).Select(s => s.AverageGrade).ToList();
-
-            // Determine the grade bucket that the average grade falls into
-            var gradeBucket = 0;
-            for (var i = 0; i < sortedGrades.Count; i += bucketSize)
-            {
-                if (averageGrade >= sortedGrades[i])
-                {
-                    gradeBucket = i / bucketSize;
-                    break;
-                }
-            }
-
-            // Return the appropriate letter grade based on the grade bucket
-            switch (gradeBucket)
-            {
-                case 0:
-                    return 'A';
-                case 1:
-                    return 'B';
-                case 2:
-                    return 'C';
-                case 3:
-                    return 'D';
-                default:
-                    return 'F';
-            }
-        }
-
-        public override void CalculateStatistics()
-        {
-            if (Students.Count < 5)
-            {
-                Console.WriteLine("Ranked grading requires at least 5 students.");
-                return;
-            }
-            
-            base.CalculateStatistics();
-
-        }
-
-        public override void CalculateStudentStatistics(string name)
-        {
-            if (Students.Count < 5)
-            {
-                Console.WriteLine("Ranked grading requires at least 5 students.");
-                return ;
-            }
-            
-            base.CalculateStudentStatistics(name);
         }
 
     }
